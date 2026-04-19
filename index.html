@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Diabetes Risk Assessment — FINDRISC</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Georgia, "Times New Roman", serif;
+        background: #f8f7f4;
+      }
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+      }
+      ul {
+        list-style: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      const riskLevels = [
+        {
+          score: "< 7",
+          label: "VERY LOW RISK",
+          labelMn: "Эрсдэл маш бага",
+          prob: "1/100",
+          color: "#22c55e",
+          bg: "#f0fdf4",
+          border: "#bbf7d0",
+          advice: [
+            "Maintain healthy lifestyle",
+            "Annual routine health check",
+            "Sustain current diet and activity levels",
+            "No immediate diabetes screening needed",
+          ],
+          adviceMn: [
+            "Эрүүл амьдралыг хадгалах",
+            "Жилд нэг удаа ердийн эрүүл мэндийн үзлэг",
+            "Одоогийн хооллолт, хөдөлгөөний горимоо хадгалах",
+          ],
+        },
+        {
+          score: "7 – 11",
+          label: "LOW RISK",
+          labelMn: "Эрсдэл бага",
+          prob: "1/25",
+          color: "#84cc16",
+          bg: "#f7fee7",
+          border: "#d9f99d",
+          advice: [
+            "Review diet: increase vegetables and fruits daily",
+            "Aim for ≥30 min physical activity per day",
+            "Consider BMI reduction if overweight",
+            "Rescreen in 1–2 years",
+          ],
+          adviceMn: [
+            "Хоол, хөдөлгөөндөө анхаарах",
+            "Өдөрт ≥30 мин хөдөлгөөн хийх",
+            "Илүүдэл жинтэй бол жингээ хянах",
+            "1-2 жил дараа дахин үнэлэх",
+          ],
+        },
+        {
+          score: "12 – 14",
+          label: "MODERATE RISK",
+          labelMn: "Дунд зэргийн эрсдэл",
+          prob: "1/6",
+          color: "#f59e0b",
+          bg: "#fffbeb",
+          border: "#fde68a",
+          advice: [
+            "Weight reduction: target BMI <25",
+            "Structured physical activity program",
+            "Reduce refined carbohydrates and sugar intake",
+            "Fasting blood glucose or HbA1c screening recommended",
+            "Lifestyle modification counseling",
+          ],
+          adviceMn: [
+            "Жингээ хянах, амьдралын хэв маягаа өөрчлөх",
+            "Цусан дахь сахараа шинжлүүлэх (ХГТ эсвэл HbA1c)",
+            "Нүүрс ус, элсэн чихрийн хэрэглээг бууруулах",
+          ],
+        },
+        {
+          score: "15 – 20",
+          label: "HIGH RISK",
+          labelMn: "Эрсдэл өндөр",
+          prob: "1/3",
+          color: "#ef4444",
+          bg: "#fef2f2",
+          border: "#fecaca",
+          advice: [
+            "Urgent fasting glucose + HbA1c testing",
+            "Check blood pressure and lipid profile",
+            "Refer to physician / endocrinologist",
+            "Strict dietary control — low glycemic index diet",
+            "Daily physical activity ≥30 min mandatory",
+            "Monitor and document blood sugar trends",
+          ],
+          adviceMn: [
+            "Эмчид хандаж, цусан дахь сахараа шинжлүүлэх",
+            "Цусны даралт, өөх тосны шинжилгээ хийх",
+            "Дотрын эмч / эндокринологичт үзүүлэх",
+            "Хоол унд, хөдөлгөөнийг эрс өөрчлөх",
+          ],
+        },
+        {
+          score: "> 20",
+          label: "VERY HIGH RISK",
+          labelMn: "Эрсдэл маш өндөр",
+          prob: "1/2",
+          color: "#7c3aed",
+          bg: "#faf5ff",
+          border: "#e9d5ff",
+          advice: [
+            "Immediate clinical evaluation required",
+            "Fasting glucose + 2h OGTT + HbA1c",
+            "Full metabolic panel (lipids, renal, liver)",
+            "Specialist referral: endocrinologist",
+            "Discuss pharmacological prevention (metformin) if eligible",
+            "Intensive lifestyle intervention program",
+            "Follow-up every 3 months",
+          ],
+          adviceMn: [
+            "Яаралтай эмнэлзүйн үнэлгээ хийх",
+            "ОГТТ, HbA1c, бүрэн бодисын солилцооны шинжилгээ",
+            "Эндокринологич эмчид яаралтай үзүүлэх",
+            "3 сар тутамд дахин хяналт",
+          ],
+        },
+      ];
+
+      const riskFactors = [
+        { factor: "Age 45–54", points: 2 },
+        { factor: "Age 55–64", points: 3 },
+        { factor: "Age ≥65", points: 4 },
+        { factor: "BMI 25–30 (Overweight)", points: 1 },
+        { factor: "BMI >30 (Obese)", points: 3 },
+        { factor: "Waist: M 94–102 / F 80–88 cm", points: 3 },
+        { factor: "Waist: M >102 / F >88 cm", points: 4 },
+        { factor: "No daily physical activity", points: 2 },
+        { factor: "No daily fruits/vegetables", points: 1 },
+        { factor: "On antihypertensive medication", points: 2 },
+        { factor: "Previous high blood glucose", points: 5 },
+        { factor: "Family Hx: 2nd-degree relative", points: 3 },
+        { factor: "Family Hx: 1st-degree relative", points: 5 },
+      ];
+
+      function getRisk(s) {
+        const n = parseInt(s);
+        if (isNaN(n)) return null;
+        if (n < 7) return riskLevels[0];
+        if (n <= 11) return riskLevels[1];
+        if (n <= 14) return riskLevels[2];
+        if (n <= 20) return riskLevels[3];
+        return riskLevels[4];
+      }
+
+      function App() {
+        const [tab, setTab] = useState("risk");
+        const [score, setScore] = useState("");
+        const [checks, setChecks] = useState({});
+
+        const calcScore = Object.entries(checks)
+          .filter(([, v]) => v)
+          .reduce((acc, [k]) => acc + riskFactors[parseInt(k)].points, 0);
+
+        const manualRisk = getRisk(score);
+        const calcRisk = getRisk(calcScore);
+
+        const tabs = [
+          { id: "risk", label: "Risk Reference Table" },
+          { id: "calc", label: "Score Calculator" },
+          { id: "lookup", label: "Quick Lookup" },
+        ];
+
+        return (
+          <div
+            style={{
+              fontFamily: "Georgia,'Times New Roman',serif",
+              background: "#f8f7f4",
+              minHeight: "100vh",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                background: "#1a3a5c",
+                color: "white",
+                padding: "28px 40px 20px",
+              }}
+            >
+              <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: 3,
+                    textTransform: "uppercase",
+                    color: "#90b8d8",
+                    marginBottom: 6,
+                  }}
+                >
+                  ENDOCRINOLOGY · PATIENT ASSESSMENT TOOL
+                </div>
+                <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700 }}>
+                  Diabetes Risk Cross-Reference Table
+                </h1>
+                <div style={{ fontSize: 14, color: "#a8c8e8", marginTop: 6 }}>
+                  FINDRISC-based · Чихрийн шижингийн эрсдэлийн үнэлгээ
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ background: "#22405e" }}>
+              <div
+                style={{ maxWidth: 1100, margin: "0 auto", display: "flex" }}
+              >
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    style={{
+                      padding: "13px 26px",
+                      background: tab === t.id ? "#f8f7f4" : "transparent",
+                      color: tab === t.id ? "#1a3a5c" : "#a8c8e8",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: tab === t.id ? 700 : 400,
+                      fontFamily: "inherit",
+                      borderTop:
+                        tab === t.id
+                          ? "3px solid #f59e0b"
+                          : "3px solid transparent",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div
+              style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 40px" }}
+            >
+              {/* RISK TABLE */}
+              {tab === "risk" && (
+                <div>
+                  <p style={{ fontSize: 14, color: "#666", marginBottom: 22 }}>
+                    Cross-reference a patient's total score to determine their
+                    10-year diabetes risk and recommended clinical actions.
+                  </p>
+                  {riskLevels.map((r, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        background: r.bg,
+                        border: `1.5px solid ${r.border}`,
+                        borderLeft: `6px solid ${r.color}`,
+                        borderRadius: 8,
+                        marginBottom: 14,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "110px 200px 80px 1fr",
+                          alignItems: "start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "18px 16px",
+                            borderRight: `1px solid ${r.border}`,
+                            textAlign: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              marginBottom: 4,
+                            }}
+                          >
+                            Score
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 26,
+                              fontWeight: 800,
+                              color: r.color,
+                            }}
+                          >
+                            {r.score}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            padding: "18px 16px",
+                            borderRight: `1px solid ${r.border}`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "inline-block",
+                              background: r.color,
+                              color: "white",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "3px 9px",
+                              borderRadius: 3,
+                              letterSpacing: 0.8,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {r.label}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#555" }}>
+                            {r.labelMn}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            padding: "18px 12px",
+                            borderRight: `1px solid ${r.border}`,
+                            textAlign: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: 0.8,
+                              marginBottom: 4,
+                            }}
+                          >
+                            10-yr
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 20,
+                              fontWeight: 800,
+                              color: r.color,
+                            }}
+                          >
+                            {r.prob}
+                          </div>
+                        </div>
+                        <div style={{ padding: "16px 20px" }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#888",
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              marginBottom: 8,
+                            }}
+                          >
+                            Clinical Recommendations
+                          </div>
+                          {r.advice.map((a, j) => (
+                            <div
+                              key={j}
+                              style={{
+                                fontSize: 13,
+                                color: "#334",
+                                marginBottom: 5,
+                                display: "flex",
+                                gap: 8,
+                              }}
+                            >
+                              <span style={{ color: r.color, fontWeight: 700 }}>
+                                ›
+                              </span>
+                              {a}
+                            </div>
+                          ))}
+                          <div
+                            style={{
+                              marginTop: 10,
+                              paddingTop: 8,
+                              borderTop: `1px dashed ${r.border}`,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: "#999",
+                                marginBottom: 4,
+                                letterSpacing: 0.8,
+                              }}
+                            >
+                              МН ЗӨВЛӨМЖ
+                            </div>
+                            {r.adviceMn.map((a, j) => (
+                              <div
+                                key={j}
+                                style={{
+                                  fontSize: 12,
+                                  color: "#667",
+                                  marginBottom: 2,
+                                }}
+                              >
+                                • {a}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* CALCULATOR */}
+              {tab === "calc" && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 320px",
+                    gap: 24,
+                    alignItems: "start",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "white",
+                      borderRadius: 8,
+                      border: "1.5px solid #e0ddd8",
+                      padding: "24px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#1a3a5c",
+                        letterSpacing: 1,
+                        textTransform: "uppercase",
+                        marginBottom: 16,
+                      }}
+                    >
+                      Risk Factors
+                    </div>
+                    {riskFactors.map((f, i) => (
+                      <label
+                        key={i}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "10px 12px",
+                          marginBottom: 4,
+                          borderRadius: 6,
+                          background: checks[i] ? "#eff6ff" : "transparent",
+                          cursor: "pointer",
+                          border: checks[i]
+                            ? "1px solid #bfdbfe"
+                            : "1px solid transparent",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!checks[i]}
+                          onChange={(e) =>
+                            setChecks((p) => ({ ...p, [i]: e.target.checked }))
+                          }
+                          style={{
+                            width: 16,
+                            height: 16,
+                            accentColor: "#1a3a5c",
+                            cursor: "pointer",
+                          }}
+                        />
+                        <span style={{ flex: 1, fontSize: 14, color: "#334" }}>
+                          {f.factor}
+                        </span>
+                        <span
+                          style={{
+                            background: "#1a3a5c",
+                            color: "white",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            padding: "2px 10px",
+                            borderRadius: 10,
+                          }}
+                        >
+                          +{f.points}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div style={{ position: "sticky", top: 20 }}>
+                    <div
+                      style={{
+                        background: calcRisk ? calcRisk.bg : "white",
+                        border: `1.5px solid ${
+                          calcRisk ? calcRisk.border : "#e0ddd8"
+                        }`,
+                        borderLeft: `6px solid ${
+                          calcRisk ? calcRisk.color : "#ccc"
+                        }`,
+                        borderRadius: 8,
+                        padding: "24px 20px",
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: 1,
+                          marginBottom: 10,
+                        }}
+                      >
+                        Total Score
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 60,
+                          fontWeight: 800,
+                          color: calcRisk ? calcRisk.color : "#ccc",
+                          lineHeight: 1,
+                          marginBottom: 14,
+                        }}
+                      >
+                        {calcScore}
+                      </div>
+                      {calcRisk ? (
+                        <>
+                          <div
+                            style={{
+                              display: "inline-block",
+                              background: calcRisk.color,
+                              color: "white",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "4px 12px",
+                              borderRadius: 4,
+                              letterSpacing: 0.8,
+                              marginBottom: 10,
+                            }}
+                          >
+                            {calcRisk.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              color: "#555",
+                              marginBottom: 14,
+                            }}
+                          >
+                            10-year risk:{" "}
+                            <strong style={{ color: calcRisk.color }}>
+                              {calcRisk.prob}
+                            </strong>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#1a3a5c",
+                              textTransform: "uppercase",
+                              letterSpacing: 0.8,
+                              marginBottom: 10,
+                            }}
+                          >
+                            Recommendations
+                          </div>
+                          {calcRisk.advice.map((a, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                fontSize: 13,
+                                color: "#334",
+                                marginBottom: 6,
+                                display: "flex",
+                                gap: 8,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: calcRisk.color,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ›
+                              </span>
+                              {a}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 14, color: "#999" }}>
+                          Select risk factors above
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setChecks({})}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        background: "#1a3a5c",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        fontSize: 14,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Reset All
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* QUICK LOOKUP */}
+              {tab === "lookup" && (
+                <div style={{ maxWidth: 600 }}>
+                  <p style={{ fontSize: 14, color: "#666", marginBottom: 22 }}>
+                    Enter a patient's total score to instantly retrieve their
+                    risk category and clinical advice.
+                  </p>
+                  <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Enter score (e.g. 13)"
+                      value={score}
+                      onChange={(e) => setScore(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: "14px 18px",
+                        fontSize: 20,
+                        border: "2px solid #1a3a5c",
+                        borderRadius: 6,
+                        fontFamily: "inherit",
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={() => setScore("")}
+                      style={{
+                        padding: "14px 18px",
+                        background: "#e5e3df",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {manualRisk && (
+                    <div
+                      style={{
+                        background: manualRisk.bg,
+                        border: `1.5px solid ${manualRisk.border}`,
+                        borderLeft: `6px solid ${manualRisk.color}`,
+                        borderRadius: 8,
+                        padding: "24px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 16,
+                          marginBottom: 18,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 52,
+                            fontWeight: 800,
+                            color: manualRisk.color,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {score}
+                        </div>
+                        <div>
+                          <div
+                            style={{
+                              display: "inline-block",
+                              background: manualRisk.color,
+                              color: "white",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              padding: "3px 12px",
+                              borderRadius: 4,
+                              letterSpacing: 0.8,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {manualRisk.label}
+                          </div>
+                          <div style={{ fontSize: 14, color: "#555" }}>
+                            10-year risk:{" "}
+                            <strong style={{ color: manualRisk.color }}>
+                              {manualRisk.prob}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#1a3a5c",
+                          textTransform: "uppercase",
+                          letterSpacing: 0.8,
+                          marginBottom: 12,
+                        }}
+                      >
+                        Clinical Recommendations
+                      </div>
+                      {manualRisk.advice.map((a, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            fontSize: 14,
+                            color: "#334",
+                            marginBottom: 8,
+                            padding: "9px 14px",
+                            background: "rgba(255,255,255,0.6)",
+                            borderRadius: 5,
+                            display: "flex",
+                            gap: 10,
+                          }}
+                        >
+                          <span
+                            style={{ color: manualRisk.color, fontWeight: 700 }}
+                          >
+                            ›
+                          </span>
+                          {a}
+                        </div>
+                      ))}
+                      <div
+                        style={{
+                          marginTop: 16,
+                          paddingTop: 14,
+                          borderTop: `1px dashed ${manualRisk.border}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: "#999",
+                            letterSpacing: 0.8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          МН ЗӨВЛӨМЖ
+                        </div>
+                        {manualRisk.adviceMn.map((a, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              fontSize: 13,
+                              color: "#667",
+                              marginBottom: 5,
+                            }}
+                          >
+                            • {a}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: 32,
+                  padding: "14px 18px",
+                  background: "#f0ece6",
+                  border: "1px solid #ddd8d0",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: "#888",
+                }}
+              >
+                <strong>Reference:</strong> Based on the Finnish Diabetes Risk
+                Score (FINDRISC). This tool is for screening purposes only.
+                Clinical judgment and confirmatory laboratory testing should
+                guide management decisions.
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
